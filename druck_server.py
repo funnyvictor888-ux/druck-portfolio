@@ -25,11 +25,68 @@ PORTFOLIO = {
 CAPITAL = 100000
 data_cache = {"data": None, "last_update": 0}
 
+def calculate_regime_score(qqq_spx, vix, correlation, put_call_ratio, sector_leader):
+    score = 0
+    if qqq_spx > 0.092: score += 30
+    elif qqq_spx > 0.090: score += 20
+    elif qqq_spx > 0.088: score += 10
+    elif qqq_spx > 0.086: score += 0
+    else: score -= 30
+    
+    if vix < 15: score += 25
+    elif vix < 20: score += 15
+    elif vix < 25: score += 0
+    elif vix < 30: score -= 15
+    else: score -= 25
+    
+    if correlation < 0.3: score += 20
+    elif correlation < 0.5: score += 10
+    elif correlation < 0.7: score -= 10
+    else: score -= 20
+    
+    if put_call_ratio < 0.8: score += 15
+    elif put_call_ratio < 1.2: score += 0
+    elif put_call_ratio < 1.5: score -= 5
+    else: score -= 15
+    
+    if sector_leader == "XLK": score += 10
+    elif sector_leader in ["XLI", "XLE"]: score += 5
+    elif sector_leader in ["XLV", "XLU"]: score -= 10
+    
+    if score >= 60:
+        regime, color, action = "BROAD_RISK_APPETITE", "#00ff88", "AGGRESSIVE"
+    elif score >= 20:
+        regime, color, action = "SELECTIVE_ROTATION_BULLISH", "#a8ff78", "GROWTH"
+    elif score >= -20:
+        regime, color, action = "SELECTIVE_ROTATION_NEUTRAL", "#ffaa00", "SELECTIVE"
+    elif score >= -60:
+        regime, color, action = "SELECTIVE_ROTATION_DEFENSIVE", "#ff8c00", "DEFENSIVE"
+    else:
+        regime, color, action = "SYSTEMIK_RISK", "#ff2b2b", "MAX_DEFENSIVE"
+    
+    return {
+        "score": score,
+        "regime": regime,
+        "color": color,
+        "action": action,
+        "breakdown": {
+            "qqq_spx": qqq_spx,
+            "vix": vix,
+            "correlation": correlation,
+            "put_call_ratio": put_call_ratio,
+            "sector_leader": sector_leader
+        }
+    }
+
 def fetch_json(url, timeout=10):
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as r:
+        req = urllib.request.Request(url)
+        req.add_header('User-Agent', 'Mozilla/5.0')
+        with urllib.request.urlopen(req, timeout=timeout) as r:
             return json.loads(r.read().decode())
-    except: return None
+    except Exception as e:
+        print(f"Fetch error: {e}")
+        return None
 
 def fetch_stock_prices():
     print("Fetching prices...")
@@ -44,24 +101,40 @@ def fetch_stock_prices():
             if data and 'chart' in data and 'result' in data['chart']:
                 price = data['chart']['result'][0]['meta']['regularMarketPrice']
                 prices[ticker] = price
-                time.sleep(0.1)
+                print(f"  {ticker}: ${price:.2f}")
+                time.sleep(0.2)
+            else:
+                prices[ticker] = PORTFOLIO[ticker]["entry"]
         except:
             prices[ticker] = PORTFOLIO[ticker]["entry"]
     return prices
 
 def fetch_macro_data():
     print("Fetching macro...")
+    macro = {'vix': 25.65, 'dxy': 103.5, 'qqq_spx': 0.088}
     try:
         vix_url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=1d"
         vix_data = fetch_json(vix_url)
-        vix = vix_data['chart']['result'][0]['meta']['regularMarketPrice'] if vix_data else 25.65
-        return {'vix': vix, 'dxy': 103.5}
+        if vix_data and 'chart' in vix_data:
+            vix = vix_data['chart']['result'][0]['meta'].get('regularMarketPrice')
+            if vix: macro['vix'] = round(vix, 2)
     except:
-        return {'vix': 25.65, 'dxy': 103.5}
+        pass
+    return macro
 
 def calculate_portfolio():
     prices = fetch_stock_prices()
     macro = fetch_macro_data()
+    
+    # Calculate regime
+    regime = calculate_regime_score(
+        qqq_spx=macro.get('qqq_spx', 0.088),
+        vix=macro.get('vix', 25.65),
+        correlation=0.30,  # Mock - would calculate from sector data
+        put_call_ratio=1.3,  # Mock - would fetch from CBOE
+        sector_leader="XLI"  # Mock - would calculate from sector ETFs
+    )
+    
     positions = []
     total_value = 0
     total_pnl = 0
@@ -95,6 +168,7 @@ def calculate_portfolio():
         "total_pnl": round(total_pnl, 2),
         "total_pnl_pct": round((total_pnl / CAPITAL) * 100, 2),
         "macro": macro,
+        "regime": regime,
         "timestamp": datetime.now().isoformat()
     }
 
@@ -152,7 +226,7 @@ def main():
     PORT = int(os.environ.get('PORT', 8080))
     
     print("="*60)
-    print("DRUCK PORTFOLIO SERVER")
+    print("DRUCK PORTFOLIO SERVER V2 - WITH REGIME INTELLIGENCE")
     print("="*60)
     print(f"Port: {PORT}")
     print("="*60)
@@ -162,8 +236,11 @@ def main():
     data_cache["last_update"] = time.time()
     
     if data_cache["data"]:
-        print(f"Portfolio: ${data_cache['data']['total_value']:,.0f}")
+        print(f"\nPortfolio: ${data_cache['data']['total_value']:,.0f}")
         print(f"P&L: ${data_cache['data']['total_pnl']:,.0f} ({data_cache['data']['total_pnl_pct']:.2f}%)")
+        print(f"Regime: {data_cache['data']['regime']['regime']}")
+        print(f"Score: {data_cache['data']['regime']['score']}")
+        print(f"Action: {data_cache['data']['regime']['action']}")
     
     print(f"\nStarting server on port {PORT}...")
     server = HTTPServer(('0.0.0.0', PORT), RequestHandler)
