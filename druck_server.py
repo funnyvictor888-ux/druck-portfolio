@@ -8,7 +8,21 @@ import os
 import threading
 
 PORTFOLIO = {
-    "TSM": {"weight": 0.10, "entry": 357, "tier": "AI Core"},
+    "TSM": {"weight": 0.10, "entry": 357, "current": 357, "tier": "AI Core"},
+    "AVGO": {"weight": 0.15, "entry": 340, "current": 340, "tier": "AI Core"},
+    "SNDK": {"weight": 0.05, "entry": 620, "current": 620, "tier": "AI Core"},
+    "META": {"weight": 0.08, "entry": 661, "current": 661, "tier": "Platform"},
+    "AAPL": {"weight": 0.05, "entry": 220, "current": 220, "tier": "Platform"},
+    "KKR": {"weight": 0.03, "entry": 150, "current": 150, "tier": "Financial"},
+    "VST": {"weight": 0.08, "entry": 145, "current": 145, "tier": "AI Energy"},
+    "CEG": {"weight": 0.07, "entry": 280, "current": 280, "tier": "AI Energy"},
+    "LNG": {"weight": 0.10, "entry": 234, "current": 234, "tier": "Energy"},
+    "FCX": {"weight": 0.10, "entry": 48, "current": 48, "tier": "Commodity"},
+    "MPWR": {"weight": 0.06, "entry": 945, "current": 945, "tier": "Infrastructure"},
+    "GLD": {"weight": 0.05, "entry": 265, "current": 265, "tier": "Hedge"},
+    "TLT": {"weight": 0.12, "entry": 86, "current": 86, "tier": "Hedge"},
+    "CASH": {"weight": 0.01, "entry": 1, "current": 1, "tier": "Cash"}
+},
     "AVGO": {"weight": 0.15, "entry": 340, "tier": "AI Core"},
     "META": {"weight": 0.08, "entry": 661, "tier": "Platform"},
     "VST": {"weight": 0.08, "entry": 145, "tier": "AI Energy"},
